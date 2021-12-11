@@ -1,0 +1,35 @@
+#!/usr/bin/env zsh
+
+function zgenom-run() {
+	local dir repo chash saved
+
+	if [[ $# -lt 2 ]]; then
+		zgenom api err 'Usage: zgenom run <repo> <command>'
+		return 1
+	fi
+
+	repo=$1
+	shift
+	dir=$(zgenom api clone_dir $repo)
+
+	if [[ ! -d $dir ]]; then
+		zgenom api err "'$repo' is not yet cloned. Cannot run a command."
+		return 1
+	fi
+
+	pushd -q $dir || return 0
+
+	if [[ -d ./.git ]]; then
+		chash=$(git log -n 1 --format=%h)
+		saved=$dir/.git/.zgenom-run
+		if [[ -f $saved && $chash = $(< $saved) ]] popd -q && return 0
+	fi
+
+	eval $@
+
+	if [[ $? -eq 0 && -n $chash ]] printf $chash > $saved
+
+	popd -q
+}
+
+zgenom-run $@
